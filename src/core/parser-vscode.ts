@@ -28,6 +28,58 @@ export function harnessFromPath(logsDir: string): string {
   return 'Local Agent';
 }
 
+function addExistingDir(dirs: string[], candidate: string | undefined, source?: string): void {
+  if (!candidate) return;
+  try {
+    const normalized = path.normalize(candidate);
+    if (fs.existsSync(normalized) && !dirs.includes(normalized)) {
+      dirs.push(normalized);
+    }
+    if (source) {
+      debugCore('parser-vscode', `Added ${source} logs dir`, normalized);
+    }
+  } catch (e) {
+    debugCore('parser-vscode', `Cannot add ${source || 'candidate'} logs dir`, { candidate, error: e });
+  }
+}
+
+function findPortableWorkspaceStorageFromExtensionDir(): string | undefined {
+  // Portable VS Code layout:
+  //   <VSCodeRoot>/data/extensions/<extensionId>/dist
+  //   <VSCodeRoot>/data/user-data/User/workspaceStorage
+  //
+  // When the extension runs from source or a non-portable install, this search
+  // simply fails closed because the candidate path will not exist.
+  let current = __dirname;
+  for (let i = 0; i < 8; i++) {
+    const base = path.basename(current).toLowerCase();
+    const dataDir =
+      base === 'data'
+        ? current
+        : base === 'extensions'
+          ? path.dirname(current)
+          : undefined;
+
+    if (dataDir) {
+      const candidate = path.join(dataDir, 'user-data', 'User', 'workspaceStorage');
+      if (fs.existsSync(candidate)) {
+        debugCore('parser-vscode', 'Discovered portable VS Code workspaceStorage', candidate);
+        return candidate;
+      }
+      debugCore('parser-vscode', 'Portable VS Code data dir found without workspaceStorage', {
+          dataDir,
+          candidate,
+      });
+    }
+
+    const parent = path.dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+  debugCore('parser-vscode', 'No portable VS Code workspaceStorage discovered from extension directory', __dirname);
+  return undefined;
+}
+
 export function findVsCodeDirs(): string[] {
   const dirs: string[] = [];
   const home = process.env.HOME || process.env.USERPROFILE || '';
@@ -43,27 +95,28 @@ export function findVsCodeDirs(): string[] {
     } else {
       vsPath = path.join(home, '.config', edition, 'User', 'workspaceStorage');
     }
-    if (vsPath && fs.existsSync(vsPath) && !dirs.includes(vsPath)) dirs.push(vsPath);
+    addExistingDir(dirs, vsPath, edition);
   }
+
+  addExistingDir(dirs, findPortableWorkspaceStorageFromExtensionDir(), 'Portable VS Code');
 
   // VS Code Server only runs on the remote host (Linux/macOS), not on Windows directly.
   if (process.platform !== 'win32' && home) {
     const serverEditions = ['.vscode-server', '.vscode-server-insiders'];
     for (const serverDir of serverEditions) {
       const serverPath = path.join(home, serverDir, 'data', 'User', 'workspaceStorage');
-      if (fs.existsSync(serverPath) && !dirs.includes(serverPath)) dirs.push(serverPath);
+      addExistingDir(dirs, serverPath, serverDir);
     }
   }
 
   // Copilot CLI paths
   const cliActive = path.join(home, '.copilot', 'session-state');
   const cliLegacy = path.join(home, '.copilot', 'history-session-state');
-  if (fs.existsSync(cliActive)) dirs.push(cliActive);
-  if (fs.existsSync(cliLegacy)) dirs.push(cliLegacy);
+  addExistingDir(dirs, cliActive, 'GitHub Copilot CLI active');
+  addExistingDir(dirs, cliLegacy, 'GitHub Copilot CLI legacy');
 
   return dirs;
 }
-
 export function scanVsCodeDirs(logsDirs: string[]): {
   entries: { logsDir: string; dirEntries: fs.Dirent[] }[];
   totalDirs: number;

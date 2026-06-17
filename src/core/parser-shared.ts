@@ -11,7 +11,7 @@ import * as path from 'path';
 import { CodeBlock, Session, SessionRequest, Workspace } from './types';
 import { SessionSource } from './cache';
 import { classifyWorkType } from './helpers';
-import { warnCore } from './log';
+import { debugCore, warnCore } from './log';
 import { SessionSchema } from './schemas';
 
 /* ---- Path safety ---- */
@@ -34,6 +34,61 @@ export function assertTrustedPath(filePath: string): void {
   if (!isTrusted) {
     throw new Error(`Path is outside trusted directories: ${filePath}`);
   }
+}
+
+function addTrustedRoot(roots: string[], candidate: string | undefined, source?: string): void {
+  if (!candidate) return;
+  try {
+    const normalized = path.resolve(candidate);
+    if (fs.existsSync(normalized) && !roots.includes(normalized)) {
+      roots.push(normalized);
+      if (source) {
+        debugCore('parser', `Added ${source} trusted root`, normalized);
+      }
+    }
+  } catch (e) {
+    debugCore('parser', `Cannot add ${source || 'candidate'} trusted root`, { candidate, error: e });
+  }
+}
+
+function findPortableWorkspaceStorageTrustedRoot(): string | undefined {
+  // Portable VS Code layout:
+  //   <VSCodeRoot>/data/extensions/<extensionId>/dist
+  //   <VSCodeRoot>/data/user-data/User/workspaceStorage
+  //
+  // This mirrors parser-vscode discovery so assertTrustedPath allows session
+  // files discovered from the portable data folder.
+  let current = __dirname;
+
+  for (let i = 0; i < 8; i++) {
+    const base = path.basename(current).toLowerCase();
+    const dataDir =
+      base === 'data'
+        ? current
+        : base === 'extensions'
+          ? path.dirname(current)
+          : undefined;
+
+    if (dataDir) {
+      const candidate = path.join(dataDir, 'user-data', 'User', 'workspaceStorage');
+      if (fs.existsSync(candidate)) {
+        debugCore('parser', 'Discovered portable VS Code trusted root', candidate);
+        return candidate;
+      }
+
+      debugCore('parser', 'Portable VS Code data dir found without trusted workspaceStorage root', {
+        dataDir,
+        candidate,
+      });
+    }
+
+    const parent = path.dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+
+  debugCore('parser', 'No portable VS Code trusted root discovered from parser directory', __dirname);
+  return undefined;
 }
 
 function getTrustedRoots(): string[] {
@@ -68,6 +123,8 @@ function getTrustedRoots(): string[] {
   // OS temp directory (used by tests and VS Code temp storage)
   const tmpDir = os.tmpdir();
   if (tmpDir) roots.push(path.resolve(tmpDir));
+
+  addTrustedRoot(roots, findPortableWorkspaceStorageTrustedRoot(), 'Portable VS Code workspaceStorage');
 
   return roots.filter(r => r.length > 0);
 }
