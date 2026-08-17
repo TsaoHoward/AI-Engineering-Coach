@@ -24,6 +24,8 @@ import { ModelUsage, Session, SessionRequest } from './types';
 import { assertTrustedPath, createRequest, createSession, detectDevcontainerFromRequests, extractSkillNameFromPath, extractSkillPathsFromText } from './parser-shared';
 import { canonicalizeReasoningEffort, extractReasoningEffortFromModelId } from './helpers';
 
+export { findCodexDirs } from './path-discovery';
+
 interface CodexLine {
   type: string;
   timestamp?: string;
@@ -448,16 +450,6 @@ function readCodexJsonlStreaming(filePath: string, onLine: (line: CodexLine) => 
   } finally {
     fs.closeSync(fd);
   }
-}
-
-export function findCodexDirs(): string[] {
-  const home = process.env.HOME || process.env.USERPROFILE || '';
-  const dirs: string[] = [];
-  for (const name of ['sessions', 'archived_sessions', 'archived-sessions']) {
-    const sessionsDir = path.join(home, '.codex', name);
-    if (fs.existsSync(sessionsDir)) dirs.push(sessionsDir);
-  }
-  return dirs;
 }
 
 export function parseCodexSessions(sessionsDir: string): Session[] {

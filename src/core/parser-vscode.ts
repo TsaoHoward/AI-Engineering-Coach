@@ -13,6 +13,7 @@ import { debugCore, warnCore } from './log';
 import { canonicalizeReasoningEffort, extractReasoningEffortFromModelId } from './helpers';
 import { parseCLIEventsFile } from './parser-vscode-cli';
 import { parseCLIWorkspaceName, parseWorkspaceName, parseWorkspaceFolderPath, parseCLIWorkspaceFolderPath, readFile, reconstructFromJsonl, stripImageData } from './parser-vscode-files';
+import { addExistingDir, findPortableWorkspaceStorageFromExtensionDir } from './path-discovery';
 
 function isObj(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -26,58 +27,6 @@ export function harnessFromPath(logsDir: string): string {
   if (logsDir.includes('.vscode-server')) return 'Local Agent (Server)';
   if (logsDir.includes('.copilot')) return 'GitHub Copilot CLI';
   return 'Local Agent';
-}
-
-function addExistingDir(dirs: string[], candidate: string | undefined, source?: string): void {
-  if (!candidate) return;
-  try {
-    const normalized = path.normalize(candidate);
-    if (fs.existsSync(normalized) && !dirs.includes(normalized)) {
-      dirs.push(normalized);
-    }
-    if (source) {
-      debugCore('parser-vscode', `Added ${source} logs dir`, normalized);
-    }
-  } catch (e) {
-    debugCore('parser-vscode', `Cannot add ${source || 'candidate'} logs dir`, { candidate, error: e });
-  }
-}
-
-function findPortableWorkspaceStorageFromExtensionDir(): string | undefined {
-  // Portable VS Code layout:
-  //   <VSCodeRoot>/data/extensions/<extensionId>/dist
-  //   <VSCodeRoot>/data/user-data/User/workspaceStorage
-  //
-  // When the extension runs from source or a non-portable install, this search
-  // simply fails closed because the candidate path will not exist.
-  let current = __dirname;
-  for (let i = 0; i < 8; i++) {
-    const base = path.basename(current).toLowerCase();
-    const dataDir =
-      base === 'data'
-        ? current
-        : base === 'extensions'
-          ? path.dirname(current)
-          : undefined;
-
-    if (dataDir) {
-      const candidate = path.join(dataDir, 'user-data', 'User', 'workspaceStorage');
-      if (fs.existsSync(candidate)) {
-        debugCore('parser-vscode', 'Discovered portable VS Code workspaceStorage', candidate);
-        return candidate;
-      }
-      debugCore('parser-vscode', 'Portable VS Code data dir found without workspaceStorage', {
-          dataDir,
-          candidate,
-      });
-    }
-
-    const parent = path.dirname(current);
-    if (parent === current) break;
-    current = parent;
-  }
-  debugCore('parser-vscode', 'No portable VS Code workspaceStorage discovered from extension directory', __dirname);
-  return undefined;
 }
 
 export function findVsCodeDirs(): string[] {

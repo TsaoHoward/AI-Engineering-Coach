@@ -191,13 +191,7 @@ describe('parseCodexSessions skillsUsed extraction', () => {
 describe('findCodexDirs', () => {
   it('discovers active and archived Codex session directories', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-dirs-test-'));
-    const oldHome = process.env.HOME;
-    const oldUserProfile = process.env.USERPROFILE;
-
     try {
-      process.env.HOME = root;
-      process.env.USERPROFILE = root;
-
       const active = path.join(root, '.codex', 'sessions');
       const archivedUnderscore = path.join(root, '.codex', 'archived_sessions');
       const archivedHyphen = path.join(root, '.codex', 'archived-sessions');
@@ -205,12 +199,44 @@ describe('findCodexDirs', () => {
       fs.mkdirSync(archivedUnderscore, { recursive: true });
       fs.mkdirSync(archivedHyphen, { recursive: true });
 
-      expect(findCodexDirs()).toEqual([active, archivedUnderscore, archivedHyphen]);
+      expect(findCodexDirs({
+        platform: 'linux',
+        env: { HOME: root, WSL_DISTRO_NAME: '', WSL_INTEROP: '' },
+      })).toEqual([active, archivedUnderscore, archivedHyphen]);
     } finally {
-      if (oldHome === undefined) delete process.env.HOME;
-      else process.env.HOME = oldHome;
-      if (oldUserProfile === undefined) delete process.env.USERPROFILE;
-      else process.env.USERPROFILE = oldUserProfile;
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('feeds sessions from both host-local and WSL Windows Codex homes into parsing', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-multi-root-test-'));
+    const hostHome = path.join(root, 'host');
+    const windowsHome = path.join(root, 'windows');
+
+    function writeSession(home: string, sessionId: string): void {
+      const dayDir = path.join(home, '.codex', 'sessions', '2026', '08', '17');
+      fs.mkdirSync(dayDir, { recursive: true });
+      fs.writeFileSync(path.join(dayDir, `rollout-${sessionId}.jsonl`), [
+        { type: 'session_meta', payload: { id: sessionId, cwd: path.join(root, 'workspace') } },
+        { type: 'event_msg', timestamp: '2026-08-17T02:00:00Z', payload: { type: 'user_message', message: 'hello' } },
+        { type: 'event_msg', timestamp: '2026-08-17T02:00:01Z', payload: { type: 'assistant_message', content: 'hi' } },
+      ].map(line => JSON.stringify(line)).join('\n'), 'utf-8');
+    }
+
+    try {
+      writeSession(hostHome, 'host-session');
+      writeSession(windowsHome, 'windows-session');
+
+      const dirs = findCodexDirs({
+        platform: 'linux',
+        env: { HOME: hostHome, WSL_DISTRO_NAME: 'Ubuntu-24.04' },
+        release: 'microsoft-standard-WSL2',
+        windowsHome,
+      });
+      const sessions = dirs.flatMap(dir => parseCodexSessions(dir));
+
+      expect(sessions.map(session => session.sessionId).sort()).toEqual(['host-session', 'windows-session']);
+    } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
   });
