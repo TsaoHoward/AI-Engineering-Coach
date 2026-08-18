@@ -24,6 +24,7 @@ export function isErrorResult(v: unknown): v is ErrorResult {
 }
 
 import type { DateFilter, Session } from './session-types';
+import type { ApiEquivalentCostData } from './api-equivalent-types';
 import type {
   AiCreditBurndownData,
   AiCreditData,
@@ -65,7 +66,7 @@ export interface RpcMethodMap {
   getCodeProduction: { params: DateFilter | undefined; result: CodeProductionData };
   getConsumption: { params: DateFilter | undefined; result: ConsumptionData };
   getBurndown: { params: { config: BurndownConfig; filter?: DateFilter }; result: BurndownData };
-  getAiCredits: { params: DateFilter | undefined; result: AiCreditData };
+  getAiCredits: { params: DateFilter | undefined; result: AiCreditData & { apiEquivalentCost: ApiEquivalentCostData } };
   getAiCreditBurndown: { params: { config: BurndownConfig; filter?: DateFilter }; result: AiCreditBurndownData };
   getTokenCoverage: { params: DateFilter | undefined; result: TokenCoverageData };
   getDayTimeline: { params: { date?: string; mode?: string; filter?: DateFilter }; result: DayTimeline };
