@@ -13,7 +13,7 @@ import {
   AntiPatternData, WorkLifeBalanceResult, StatsResult, HarnessComparisonData,
   WorkflowOptimizationData, ConfigHealthData, FlowStateData, Workspace,
   CalendarActivityData, ProjectOverviewData, ContextManagementData, InsightsData,
-  ParserCoverageData, ParserPreviewData,
+  ParserCoverageData, ParserPreviewData, ApiEquivalentCostData,
 } from './types';
 import { DashboardAnalyzer } from './analyzer-dashboard';
 import { ProductionAnalyzer } from './analyzer-production';
@@ -27,6 +27,7 @@ import { ContextAnalyzer } from './analyzer-context';
 import { InsightsAnalyzer } from './analyzer-insights';
 import { ImageAnalyzer, ImageGalleryData } from './analyzer-images';
 import { AnalyzerBase } from './analyzer-base';
+import { buildApiEquivalentCost } from './api-equivalent-cost';
 import { errorCore, infoCore, warnCore } from './log';
 
 export class Analyzer {
@@ -203,7 +204,12 @@ export class Analyzer {
 
   getConsumption(f?: DateFilter): ConsumptionData { return this.consumption.getConsumption(f); }
   getBurndown(config: BurndownConfig, f?: DateFilter): BurndownData { return this.consumption.getBurndown(config, f); }
-  getAiCredits(f?: DateFilter): AiCreditData { return this.consumption.getAiCredits(f); }
+  getAiCredits(f?: DateFilter): AiCreditData & { apiEquivalentCost: ApiEquivalentCostData } {
+    return {
+      ...this.consumption.getAiCredits(f),
+      apiEquivalentCost: buildApiEquivalentCost(this.sessions, f),
+    };
+  }
   getAiCreditBurndown(config: BurndownConfig, f?: DateFilter): AiCreditBurndownData { return this.consumption.getAiCreditBurndown(config, f); }
   getTokenCoverage(f?: DateFilter): TokenCoverageData { return this.consumption.getTokenCoverage(f); }
 
