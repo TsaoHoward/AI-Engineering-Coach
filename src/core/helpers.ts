@@ -48,10 +48,18 @@ export function endOfDay(ts: number): number {
 }
 
 export function isoWeek(d: Date): string {
-  const thu = new Date(d);
-  thu.setDate(d.getDate() - ((d.getDay() + 6) % 7) + 3);
-  const yr = thu.getFullYear();
-  const wk = Math.ceil((((thu.getTime() - new Date(yr, 0, 4).getTime()) / 86400000) + new Date(yr, 0, 4).getDay() + 1) / 7);
+  // Convert the local calendar date to UTC before doing ISO-week arithmetic.
+  // This avoids DST skew while preserving the caller's local date semantics.
+  const thu = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayFromMonday = (thu.getUTCDay() + 6) % 7;
+  thu.setUTCDate(thu.getUTCDate() - dayFromMonday + 3);
+
+  const yr = thu.getUTCFullYear();
+  const firstThu = new Date(Date.UTC(yr, 0, 4));
+  const firstDayFromMonday = (firstThu.getUTCDay() + 6) % 7;
+  firstThu.setUTCDate(firstThu.getUTCDate() - firstDayFromMonday + 3);
+
+  const wk = 1 + Math.round((thu.getTime() - firstThu.getTime()) / (7 * 86400000));
   return `${yr}-W${String(wk).padStart(2, '0')}`;
 }
 
