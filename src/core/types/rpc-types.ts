@@ -23,8 +23,7 @@ export function isErrorResult(v: unknown): v is ErrorResult {
   return typeof v === 'object' && v !== null && typeof (v as { error?: unknown }).error === 'string';
 }
 
-import type { DateFilter, Session } from './session-types';
-import type { ApiEquivalentCostData } from './api-equivalent-types';
+import type { ImageGalleryData } from '../analyzer-images';
 import type {
   AiCreditBurndownData,
   AiCreditData,
@@ -49,10 +48,11 @@ import type {
   WorkLifeBalanceResult,
   WorkflowOptimizationData,
 } from './analytics-types';
+import type { ApiEquivalentCostData } from './api-equivalent-types';
 import type { ConfigHealthData } from './config-types';
-import type { InsightsData } from './insights-types';
 import type { ContextManagementData, FlowStateData, WorkspaceContextSessionsData } from './context-types';
-import type { ImageGalleryData } from '../analyzer-images';
+import type { InsightsData } from './insights-types';
+import type { DateFilter, Session } from './session-types';
 
 /* RPC method map: method name -> { params, result } */
 export interface RpcMethodMap {
