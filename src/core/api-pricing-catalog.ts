@@ -29,10 +29,11 @@ export const OPENAI_API_PRICING_2026_08_18: ApiEquivalentPricingMetadata = {
     'gpt-5.2-codex': { input: 1.75, cachedInput: 0.175, output: 14.00 },
     'gpt-5.3-codex': { input: 1.75, cachedInput: 0.175, output: 14.00 },
     'gpt-5.4': { input: 2.50, cachedInput: 0.25, output: 15.00 },
+    'gpt-5.4-mini': { input: 0.75, cachedInput: 0.075, output: 4.50 },
     'gpt-5.5': { input: 5.00, cachedInput: 0.50, output: 30.00 },
     'gpt-5.6': { input: 5.00, cachedInput: 0.50, output: 30.00, cacheWrite: 6.25 },
     'gpt-5.6-sol': { input: 5.00, cachedInput: 0.50, output: 30.00, cacheWrite: 6.25 },
-    'gpt-5.6-terra': { input: 2.50, cachedInput: 0.25, output: 15.00, cacheWrite: 3.125 },
-    'gpt-5.6-luna': { input: 1.00, cachedInput: 0.10, output: 6.00, cacheWrite: 1.25 },
+    'gpt-5.6-terra': { input: 2.00, cachedInput: 0.20, output: 12.00, cacheWrite: 2.50 },
+    'gpt-5.6-luna': { input: 0.20, cachedInput: 0.02, output: 1.20, cacheWrite: 0.25 },
   },
 };
