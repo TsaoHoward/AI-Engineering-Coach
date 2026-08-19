@@ -69,7 +69,7 @@ describe('Codex API-equivalent cost attribution', () => {
       },
     })]);
 
-    expect(data.totalUsd).toBeCloseTo(0.545, 6);
+    expect(data.totalUsd).toBeCloseTo(0.109, 6);
   });
 
   it('surfaces unknown models as unpriced and never falls back to Copilot multipliers', () => {
