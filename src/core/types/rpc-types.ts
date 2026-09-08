@@ -23,7 +23,7 @@ export function isErrorResult(v: unknown): v is ErrorResult {
   return typeof v === 'object' && v !== null && typeof (v as { error?: unknown }).error === 'string';
 }
 
-import type { DateFilter, Session } from './session-types';
+import type { ImageGalleryData } from '../analyzer-images';
 import type {
   AiCreditBurndownData,
   AiCreditData,
@@ -48,10 +48,11 @@ import type {
   WorkLifeBalanceResult,
   WorkflowOptimizationData,
 } from './analytics-types';
+import type { ApiEquivalentCostData } from './api-equivalent-types';
 import type { ConfigHealthData } from './config-types';
-import type { InsightsData } from './insights-types';
 import type { ContextManagementData, FlowStateData, WorkspaceContextSessionsData } from './context-types';
-import type { ImageGalleryData } from '../analyzer-images';
+import type { InsightsData } from './insights-types';
+import type { DateFilter, Session } from './session-types';
 
 /* RPC method map: method name -> { params, result } */
 export interface RpcMethodMap {
@@ -65,7 +66,7 @@ export interface RpcMethodMap {
   getCodeProduction: { params: DateFilter | undefined; result: CodeProductionData };
   getConsumption: { params: DateFilter | undefined; result: ConsumptionData };
   getBurndown: { params: { config: BurndownConfig; filter?: DateFilter }; result: BurndownData };
-  getAiCredits: { params: DateFilter | undefined; result: AiCreditData };
+  getAiCredits: { params: DateFilter | undefined; result: AiCreditData & { apiEquivalentCost: ApiEquivalentCostData } };
   getAiCreditBurndown: { params: { config: BurndownConfig; filter?: DateFilter }; result: AiCreditBurndownData };
   getTokenCoverage: { params: DateFilter | undefined; result: TokenCoverageData };
   getDayTimeline: { params: { date?: string; mode?: string; filter?: DateFilter }; result: DayTimeline };

@@ -36,6 +36,30 @@ export function assertTrustedPath(filePath: string): void {
   }
 }
 
+function windowsUserProfileToWslPath(userProfile: string): string | null {
+  const match = /^([A-Za-z]):[\\/](.*)$/.exec(userProfile.trim());
+  if (!match) return null;
+  const [, drive, rest] = match;
+  const parts = rest.split(/[\\/]+/).filter(Boolean);
+  return path.posix.join('/mnt', drive.toLowerCase(), ...parts);
+}
+
+function getWslWindowsCodexRoots(home: string): string[] {
+  if (process.platform !== 'linux' || (!process.env.WSL_DISTRO_NAME && !process.env.WSL_INTEROP)) return [];
+
+  const userProfile = process.env.USERPROFILE || '';
+  if (userProfile) {
+    const mountedProfile = windowsUserProfileToWslPath(userProfile);
+    if (mountedProfile) return [path.posix.join(mountedProfile, '.codex')];
+    if (path.isAbsolute(userProfile)) return [path.resolve(userProfile, '.codex')];
+    return [];
+  }
+
+  if (!home) return [];
+  const userName = path.basename(home.replace(/[\\/]+$/, ''));
+  return userName ? [path.posix.join('/mnt/c/Users', userName, '.codex')] : [];
+}
+
 function getTrustedRoots(): string[] {
   const roots: string[] = [];
   const home = process.env.HOME || process.env.USERPROFILE || '';
@@ -64,6 +88,7 @@ function getTrustedRoots(): string[] {
     roots.push(path.resolve(home, '.local', 'share', 'opencode'));
     roots.push(path.resolve(home, '.config', 'github-copilot'));
   }
+  roots.push(...getWslWindowsCodexRoots(home));
 
   // OS temp directory (used by tests and VS Code temp storage)
   const tmpDir = os.tmpdir();

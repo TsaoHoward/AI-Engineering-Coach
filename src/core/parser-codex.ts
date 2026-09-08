@@ -450,13 +450,68 @@ function readCodexJsonlStreaming(filePath: string, onLine: (line: CodexLine) => 
   }
 }
 
-export function findCodexDirs(): string[] {
-  const home = process.env.HOME || process.env.USERPROFILE || '';
-  const dirs: string[] = [];
-  for (const name of ['sessions', 'archived_sessions', 'archived-sessions']) {
-    const sessionsDir = path.join(home, '.codex', name);
-    if (fs.existsSync(sessionsDir)) dirs.push(sessionsDir);
+function isWslRuntime(): boolean {
+  return process.platform === 'linux'
+    && Boolean(process.env.WSL_DISTRO_NAME || process.env.WSL_INTEROP);
+}
+
+function windowsUserProfileToWslPath(userProfile: string): string | null {
+  const match = /^([A-Za-z]):[\\/](.*)$/.exec(userProfile.trim());
+  if (!match) return null;
+  const [, drive, rest] = match;
+  const parts = rest.split(/[\\/]+/).filter(Boolean);
+  return path.posix.join('/mnt', drive.toLowerCase(), ...parts);
+}
+
+function codexHomeCandidates(): string[] {
+  const home = process.env.HOME || '';
+  const userProfile = process.env.USERPROFILE || '';
+  const candidates: string[] = [];
+
+  if (home) candidates.push(home);
+
+  if (!isWslRuntime()) {
+    if (!home && userProfile) candidates.push(userProfile);
+    return candidates;
   }
+
+  if (userProfile) {
+    const mountedProfile = windowsUserProfileToWslPath(userProfile);
+    if (mountedProfile) candidates.push(mountedProfile);
+    else if (path.isAbsolute(userProfile)) candidates.push(userProfile);
+  } else if (home) {
+    // USERPROFILE is commonly not exported into WSL. In that case, the
+    // corresponding Windows profile normally shares the WSL user name.
+    const userName = path.basename(home.replace(/[\\/]+$/, ''));
+    if (userName) candidates.push(path.posix.join('/mnt/c/Users', userName));
+  }
+
+  return candidates;
+}
+
+function canonicalExistingPath(candidate: string): string {
+  try {
+    return fs.realpathSync.native(candidate);
+  } catch {
+    return path.resolve(candidate);
+  }
+}
+
+export function findCodexDirs(): string[] {
+  const dirs: string[] = [];
+  const seen = new Set<string>();
+
+  for (const home of codexHomeCandidates()) {
+    for (const name of ['sessions', 'archived_sessions', 'archived-sessions']) {
+      const sessionsDir = path.join(home, '.codex', name);
+      if (!fs.existsSync(sessionsDir)) continue;
+      const key = canonicalExistingPath(sessionsDir);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      dirs.push(sessionsDir);
+    }
+  }
+
   return dirs;
 }
 
